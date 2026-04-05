@@ -209,8 +209,11 @@ function openModal(dateStr) {
 
   let buttons = '';
   if (!info || info.status === '空き') {
-    document.getElementById('modalTitle').textContent = '仮押さえしますか？';
-    buttons = `<button class="btn btn-reserve" onclick="doReserve()">仮押さえする</button>`;
+    document.getElementById('modalTitle').textContent = 'この日を予約しますか？';
+    buttons = `
+      <button class="btn btn-reserve" onclick="doReserve()">仮押さえする</button>
+      <button class="btn btn-confirm" onclick="doConfirm()">依頼確定する</button>
+    `;
   } else if (info.status === '仮押さえ' && info.canConfirm) {
     document.getElementById('modalTitle').textContent = 'この日の予約を確定しますか？';
     buttons = `
