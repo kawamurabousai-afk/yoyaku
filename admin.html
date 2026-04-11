@@ -48,7 +48,7 @@
   .btn-cancel { background: #e53935; color: white; }
   .btn-close { background: #eee; color: #333; }
   .processing { display: none; text-align: center; padding: 12px; color: #1976d2; font-size: 14px; font-weight: bold; }
-.memo-section { margin-top: 24px; background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .memo-section { margin-top: 24px; background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
   .memo-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 8px; }
   .memo-textarea { width: 100%; height: 180px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 14px; resize: vertical; box-sizing: border-box; font-family: sans-serif; }
   .memo-btn { margin-top: 8px; padding: 10px; width: 100%; background: #1976d2; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
@@ -98,8 +98,8 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let calendarData = [];
 let selectedDate = '';
+let isProcessing = false;
 
-// 現在日時の表示
 function updateDatetime() {
   const now = new Date();
   const str = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -117,7 +117,7 @@ async function loadCalendar() {
       renderCalendar();
     }
   } catch(e) {
-    document.getElementById('calendar').innerHTML = '<div style="text-align:center;padding:32px;color:#999;grid-column:span 7">読み込みエラー</div>';
+    document.getElementById('calendar').innerHTML = '<div style="text-align:center;padding:32px;color:#e53935;grid-column:span 7">読み込みエラー。再読み込みしてください。</div>';
   }
 }
 
@@ -150,7 +150,6 @@ function renderCalendar() {
 
     if (isPast) {
       dayClass = 'past';
-      badge = '';
     } else if (status === '確定') {
       dayClass = 'confirmed';
       badge = '<span class="status-badge badge-confirmed">確定</span>';
@@ -161,9 +160,7 @@ function renderCalendar() {
       dayClass = 'available';
       badge = '<span class="status-badge badge-available">○</span>';
     } else {
-      // 非公開
       dayClass = 'hidden';
-      badge = '';
     }
 
     const onclick = isPast ? '' : `onclick="openModal('${dateStr}')"`;
@@ -191,31 +188,31 @@ function openModal(dateStr) {
   const [y, m, d] = dateStr.split('-');
   document.getElementById('modalDate').textContent = `${y}年${m}月${d}日`;
 
-  let title = 'この日を操作する';
   let infoText = '';
   let buttons = '';
 
   if (status === '非公開') {
     infoText = '状態：非公開（元請け画面に表示されていません）';
-    buttons = `<button class="btn btn-publish" onclick="doPublish()">✅ 空きとして公開する</button>`;
+    buttons = `<button class="btn btn-publish" onclick="doAction('publish')">✅ 空きとして公開する</button>`;
   } else if (status === '空き') {
     infoText = '状態：空き（元請け画面に○表示中）';
     buttons = `
-      <button class="btn btn-reserve" onclick="doReserve()">📌 仮押さえする</button>
-      <button class="btn btn-unpublish" onclick="doUnpublish()">🚫 非公開に戻す</button>
+      <button class="btn btn-confirm" onclick="doAction('confirm')">✅ 依頼確定する</button>
+      <button class="btn btn-reserve" onclick="doAction('reserve')">📌 仮押さえする</button>
+      <button class="btn btn-unpublish" onclick="doAction('unpublish')">🚫 非公開に戻す</button>
     `;
   } else if (status === '仮押さえ') {
     infoText = `状態：仮押さえ中\n会社：${info.reservedBy || ''}`;
     buttons = `
-      <button class="btn btn-confirm" onclick="doConfirm()">✅ 確定する</button>
-      <button class="btn btn-cancel" onclick="doCancel()">❌ 仮押さえを取消す</button>
+      <button class="btn btn-confirm" onclick="doAction('confirm')">✅ 依頼確定する</button>
+      <button class="btn btn-cancel" onclick="doAction('cancel')">❌ 仮押さえを取消す</button>
     `;
   } else if (status === '確定') {
     infoText = '状態：確定済み';
-    buttons = `<button class="btn btn-cancel" onclick="doCancel()">❌ 確定を取消す</button>`;
+    buttons = `<button class="btn btn-cancel" onclick="doAction('cancel')">❌ 確定を取消す</button>`;
   }
 
-  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalTitle').textContent = 'この日を操作する';
   document.getElementById('modalInfo').textContent = infoText;
   document.getElementById('modalButtons').innerHTML = buttons;
   document.getElementById('modal').style.display = 'block';
@@ -226,65 +223,38 @@ function closeModal() {
 }
 
 function showProcessing() {
+  isProcessing = true;
   document.getElementById('processing').style.display = 'block';
 }
 
 function hideProcessing() {
+  isProcessing = false;
   document.getElementById('processing').style.display = 'none';
 }
 
-async function doPublish() {
+// 操作をまとめた共通関数（無駄なコードを削減）
+async function doAction(action) {
+  if (isProcessing) return;
   closeModal();
   showProcessing();
-  const res = await fetch(`${GAS_URL}?action=publish&date=${selectedDate}`);
-  const json = await res.json();
-  hideProcessing();
-  alert(json.message);
-  loadCalendar();
-}
-
-async function doUnpublish() {
-  closeModal();
-  showProcessing();
-  const res = await fetch(`${GAS_URL}?action=unpublish&date=${selectedDate}`);
-  const json = await res.json();
-  hideProcessing();
-  alert(json.message);
-  loadCalendar();
-}
-
-async function doReserve() {
-  closeModal();
-  showProcessing();
-  const res = await fetch(`${GAS_URL}?action=reserve&companyId=${COMPANY_ID}&date=${selectedDate}`);
-  const json = await res.json();
-  hideProcessing();
-  alert(json.message);
-  loadCalendar();
-}
-
-async function doConfirm() {
-  closeModal();
-  showProcessing();
-  const res = await fetch(`${GAS_URL}?action=confirm&companyId=${COMPANY_ID}&date=${selectedDate}`);
-  const json = await res.json();
-  hideProcessing();
-  alert(json.message);
-  loadCalendar();
-}
-
-async function doCancel() {
-  closeModal();
-  showProcessing();
-  const res = await fetch(`${GAS_URL}?action=cancel&companyId=${COMPANY_ID}&date=${selectedDate}`);
-  const json = await res.json();
-  hideProcessing();
-  alert(json.message);
-  loadCalendar();
+  try {
+    const res = await fetch(`${GAS_URL}?action=${action}&companyId=${COMPANY_ID}&date=${selectedDate}`);
+    const json = await res.json();
+    hideProcessing();
+    alert(json.message);
+    if (json.success) {
+      // 成功時はカレンダーデータをローカル更新して再描画（再読み込みより速い）
+      await loadCalendar();
+    }
+  } catch(e) {
+    hideProcessing();
+    alert('通信エラーが発生しました。もう一度お試しください。');
+  }
 }
 
 loadCalendar();
 </script>
+
 <div class="memo-section">
   <div class="memo-title">📝 カワムラメモ</div>
   <textarea class="memo-textarea" id="memoText" placeholder="入ってきそうな物件名など、メモしておきたいことを書いてね"></textarea>
@@ -293,7 +263,6 @@ loadCalendar();
 </div>
 
 <script>
-// メモの読み込み
 const savedMemo = localStorage.getItem('kawamura_memo');
 if (savedMemo) document.getElementById('memoText').value = savedMemo;
 
