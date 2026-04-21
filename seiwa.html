@@ -8,7 +8,9 @@
   body { font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 16px; background: #f5f5f5; }
   h1 { font-size: 18px; text-align: center; color: #333; margin-bottom: 4px; }
   .company { text-align: center; font-size: 13px; color: #666; margin-bottom: 8px; }
-  .datetime { text-align: center; font-size: 12px; color: #666; margin-bottom: 12px; }
+  .datetime { text-align: center; font-size: 12px; color: #666; margin-bottom: 4px; }
+  .stale-warning { display: none; text-align: center; font-size: 13px; color: #e53935; font-weight: bold; margin-bottom: 8px; padding: 8px; background: #fff3f3; border: 1px solid #e53935; border-radius: 8px; }
+  .refresh-btn { display: block; margin: 0 auto 12px auto; background: #1976d2; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
   .month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .month-nav button { background: #1976d2; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 15px; }
   .month-title { font-size: 17px; font-weight: bold; }
@@ -59,6 +61,12 @@
 <div class="company">セイワシステムサービス様</div>
 <div class="datetime" id="datetime"></div>
 
+<!-- 5分経ったら表示される警告 -->
+<div class="stale-warning" id="staleWarning">
+  ⚠️ 情報が古い可能性があります。更新してください。
+</div>
+<button class="refresh-btn" id="refreshBtn" onclick="refreshCalendar()" style="display:none">🔄 更新する</button>
+
 <div class="legend">
   <div class="legend-item"><div class="legend-box" style="background:white;border:1px solid #ddd"></div>空き</div>
   <div class="legend-item"><div class="legend-box" style="background:#fff9c4;border:2px solid #f9a825"></div>仮押さえ中</div>
@@ -96,14 +104,29 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let calendarData = [];
 let selectedDate = '';
+let lastLoadTime = null;
+let staleTimer = null;
 
-function updateDatetime() {
-  const now = new Date();
-  const str = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  document.getElementById('datetime').textContent = `現在：${str}`;
+function updateDatetimeDisplay() {
+  if (!lastLoadTime) return;
+  const t = lastLoadTime;
+  const str = `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日 ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('datetime').textContent = `${str} 時点の情報`;
 }
-updateDatetime();
-setInterval(updateDatetime, 60000);
+
+function startStaleTimer() {
+  if (staleTimer) clearTimeout(staleTimer);
+  document.getElementById('staleWarning').style.display = 'none';
+  document.getElementById('refreshBtn').style.display = 'none';
+  staleTimer = setTimeout(() => {
+    document.getElementById('staleWarning').style.display = 'block';
+    document.getElementById('refreshBtn').style.display = 'block';
+  }, 5 * 60 * 1000);
+}
+
+async function refreshCalendar() {
+  await loadCalendar();
+}
 
 function showProcessing() {
   document.getElementById('processing').style.display = 'block';
@@ -129,6 +152,9 @@ async function loadCalendar() {
     const json = await res.json();
     if (json.success) {
       calendarData = json.calendar;
+      lastLoadTime = new Date();
+      updateDatetimeDisplay();
+      startStaleTimer();
       renderCalendar();
     }
   } catch(e) {
