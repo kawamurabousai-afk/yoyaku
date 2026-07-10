@@ -8,9 +8,7 @@
   body { font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 16px; background: #f5f5f5; }
   h1 { font-size: 18px; text-align: center; color: #333; margin-bottom: 4px; }
   .company { text-align: center; font-size: 13px; color: #666; margin-bottom: 8px; }
-  .datetime { text-align: center; font-size: 12px; color: #666; margin-bottom: 4px; }
-  .stale-warning { display: none; text-align: center; font-size: 13px; color: #e53935; font-weight: bold; margin-bottom: 8px; padding: 8px; background: #fff3f3; border: 1px solid #e53935; border-radius: 8px; }
-  .refresh-btn { display: block; margin: 0 auto 12px auto; background: #1976d2; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  .datetime { text-align: center; font-size: 12px; color: #666; margin-bottom: 12px; }
   .month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .month-nav button { background: #1976d2; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 15px; }
   .month-title { font-size: 17px; font-weight: bold; }
@@ -21,7 +19,7 @@
   .day { border-radius: 8px; padding: 6px 2px; text-align: center; font-size: 13px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; }
   .day.empty { background: transparent; }
   .day.hidden { background: #f5f5f5; }
-  .day.available { background: white; border: 1px solid #ddd; cursor: pointer; }
+  .day.available { background: white; border: 2px solid #43a047; cursor: pointer; }
   .day.available:active { background: #e3f2fd; }
   .day.reserved-mine { background: #fff9c4; border: 2px solid #f9a825; cursor: pointer; }
   .day.reserved-other { background: #eeeeee; border: 1px solid #bbb; }
@@ -32,7 +30,7 @@
   .day-num.sat { color: #1976d2; }
   .day-num.past { color: #bbb; }
   .status-badge { font-size: 10px; padding: 2px 4px; border-radius: 4px; }
-  .badge-available { color: #43a047; font-size: 14px; }
+  .badge-available { color: #2e7d32; font-size: 13px; font-weight: 900; letter-spacing: 1px; }
   .badge-mine { background: #f9a825; color: white; }
   .badge-other { color: #999; }
   .badge-confirmed { background: #43a047; color: white; }
@@ -61,14 +59,8 @@
 <div class="company">セイワシステムサービス様</div>
 <div class="datetime" id="datetime"></div>
 
-<!-- 5分経ったら表示される警告 -->
-<div class="stale-warning" id="staleWarning">
-  ⚠️ 情報が古い可能性があります。更新してください。
-</div>
-<button class="refresh-btn" id="refreshBtn" onclick="refreshCalendar()" style="display:none">🔄 更新する</button>
-
 <div class="legend">
-  <div class="legend-item"><div class="legend-box" style="background:white;border:1px solid #ddd"></div>空き</div>
+  <div class="legend-item"><div class="legend-box" style="background:white;border:2px solid #43a047"></div>空き</div>
   <div class="legend-item"><div class="legend-box" style="background:#fff9c4;border:2px solid #f9a825"></div>仮押さえ中</div>
   <div class="legend-item"><div class="legend-box" style="background:#eeeeee;border:1px solid #bbb"></div>他社押さえ</div>
   <div class="legend-item"><div class="legend-box" style="background:#e8f5e9;border:2px solid #43a047"></div>確定済</div>
@@ -104,29 +96,14 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let calendarData = [];
 let selectedDate = '';
-let lastLoadTime = null;
-let staleTimer = null;
 
-function updateDatetimeDisplay() {
-  if (!lastLoadTime) return;
-  const t = lastLoadTime;
-  const str = `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日 ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+function updateDatetime() {
+  const now = new Date();
+  const str = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   document.getElementById('datetime').textContent = `${str} 時点の情報`;
 }
-
-function startStaleTimer() {
-  if (staleTimer) clearTimeout(staleTimer);
-  document.getElementById('staleWarning').style.display = 'none';
-  document.getElementById('refreshBtn').style.display = 'none';
-  staleTimer = setTimeout(() => {
-    document.getElementById('staleWarning').style.display = 'block';
-    document.getElementById('refreshBtn').style.display = 'block';
-  }, 5 * 60 * 1000);
-}
-
-async function refreshCalendar() {
-  await loadCalendar();
-}
+updateDatetime();
+setInterval(updateDatetime, 60000);
 
 function showProcessing() {
   document.getElementById('processing').style.display = 'block';
@@ -152,9 +129,6 @@ async function loadCalendar() {
     const json = await res.json();
     if (json.success) {
       calendarData = json.calendar;
-      lastLoadTime = new Date();
-      updateDatetimeDisplay();
-      startStaleTimer();
       renderCalendar();
     }
   } catch(e) {
@@ -207,7 +181,7 @@ function renderCalendar() {
       badge = '<span class="status-badge badge-other">×</span>';
     } else if (status === '空き') {
       dayClass = 'available';
-      badge = '<span class="status-badge badge-available">○</span>';
+      badge = '<span class="status-badge badge-available">空</span>';
       onclick = `onclick="openModal('${dateStr}')"`;
     }
 
