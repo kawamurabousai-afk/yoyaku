@@ -92,6 +92,17 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzlW4CxmKXfZcwvzcZMcLzPdfxR1rkyLfsBOHM55UyEMiYu45fEaPPukb-m49LRhGdb/exec';
 const COMPANY_ID = 'cercus_shacho';
 
+const HOLIDAYS = new Set([
+  '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20',
+  '2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06',
+  '2026-07-20','2026-08-10','2026-09-21','2026-09-22','2026-09-23',
+  '2026-10-12','2026-11-03','2026-11-23',
+  '2027-01-01','2027-01-11','2027-02-11','2027-02-23','2027-03-21',
+  '2027-03-22','2027-04-29','2027-05-03','2027-05-04','2027-05-05',
+  '2027-07-19','2027-08-11','2027-09-20','2027-09-23','2027-10-11',
+  '2027-11-03','2027-11-23',
+]);
+
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let calendarData = [];
@@ -156,7 +167,16 @@ function renderCalendar() {
     const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dayOfWeek = new Date(currentYear, currentMonth, d).getDay();
     const isPast = new Date(currentYear, currentMonth, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const numClass = dayOfWeek === 0 ? 'sun' : dayOfWeek === 6 ? 'sat' : '';
+    const isHoliday = HOLIDAYS.has(dateStr);
+
+    let numClass = '';
+    if (isPast) {
+      numClass = 'past';
+    } else if (dayOfWeek === 0 || isHoliday) {
+      numClass = 'sun';
+    } else if (dayOfWeek === 6) {
+      numClass = 'sat';
+    }
 
     const info = calendarData.find(c => c.date === dateStr);
     const status = info ? info.status : null;
@@ -186,7 +206,7 @@ function renderCalendar() {
     }
 
     html += `<div class="day ${dayClass}" ${onclick}>
-      <span class="day-num ${isPast ? 'past' : numClass}">${d}</span>
+      <span class="day-num ${numClass}">${d}</span>
       ${badge}
     </div>`;
   }
