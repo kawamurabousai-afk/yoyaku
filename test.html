@@ -19,7 +19,7 @@
   .day { border-radius: 8px; padding: 6px 2px; text-align: center; font-size: 13px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; }
   .day.empty { background: transparent; }
   .day.hidden { background: #f5f5f5; }
-  .day.available { background: white; border: 1.5px solid #43a047; cursor: pointer; }
+  .day.available { background: white; border: 2px solid #43a047; cursor: pointer; }
   .day.available:active { background: #e3f2fd; }
   .day.reserved-mine { background: #fff9c4; border: 2px solid #f9a825; cursor: pointer; }
   .day.reserved-other { background: #eeeeee; border: 1px solid #bbb; }
@@ -28,6 +28,7 @@
   .day-num { font-size: 14px; font-weight: bold; }
   .day-num.sun { color: #e53935; }
   .day-num.sat { color: #1976d2; }
+  .day-num.holiday { color: #e53935; }
   .day-num.past { color: #bbb; }
   .status-badge { font-size: 10px; padding: 2px 4px; border-radius: 4px; }
   .badge-available { color: #2e7d32; font-size: 13px; font-weight: 900; letter-spacing: 1px; }
@@ -60,7 +61,7 @@
 <div class="datetime" id="datetime"></div>
 
 <div class="legend">
-  <div class="legend-item"><div class="legend-box" style="background:white;border:1.5px solid #43a047"></div>空き</div>
+  <div class="legend-item"><div class="legend-box" style="background:white;border:2px solid #43a047"></div>空き</div>
   <div class="legend-item"><div class="legend-box" style="background:#fff9c4;border:2px solid #f9a825"></div>仮押さえ中</div>
   <div class="legend-item"><div class="legend-box" style="background:#eeeeee;border:1px solid #bbb"></div>他社押さえ</div>
   <div class="legend-item"><div class="legend-box" style="background:#e8f5e9;border:2px solid #43a047"></div>確定済</div>
@@ -91,6 +92,47 @@
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzlW4CxmKXfZcwvzcZMcLzPdfxR1rkyLfsBOHM55UyEMiYu45fEaPPukb-m49LRhGdb/exec';
 const COMPANY_ID = 'test';
+
+// 祝日リスト（2026年・2027年）
+const HOLIDAYS = new Set([
+  // 2026年
+  '2026-01-01', // 元日
+  '2026-01-12', // 成人の日
+  '2026-02-11', // 建国記念の日
+  '2026-02-23', // 天皇誕生日
+  '2026-03-20', // 春分の日
+  '2026-04-29', // 昭和の日
+  '2026-05-03', // 憲法記念日
+  '2026-05-04', // みどりの日
+  '2026-05-05', // こどもの日
+  '2026-05-06', // 振替休日
+  '2026-07-20', // 海の日
+  '2026-08-10', // 山の日（振替）
+  '2026-09-21', // 敬老の日
+  '2026-09-22', // 国民の休日
+  '2026-09-23', // 秋分の日
+  '2026-10-12', // スポーツの日
+  '2026-11-03', // 文化の日
+  '2026-11-23', // 勤労感謝の日
+  // 2027年
+  '2027-01-01', // 元日
+  '2027-01-11', // 成人の日
+  '2027-02-11', // 建国記念の日
+  '2027-02-23', // 天皇誕生日
+  '2027-03-21', // 春分の日
+  '2027-03-22', // 振替休日
+  '2027-04-29', // 昭和の日
+  '2027-05-03', // 憲法記念日
+  '2027-05-04', // みどりの日
+  '2027-05-05', // こどもの日
+  '2027-07-19', // 海の日
+  '2027-08-11', // 山の日
+  '2027-09-20', // 敬老の日
+  '2027-09-23', // 秋分の日
+  '2027-10-11', // スポーツの日
+  '2027-11-03', // 文化の日
+  '2027-11-23', // 勤労感謝の日
+]);
 
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
@@ -156,7 +198,16 @@ function renderCalendar() {
     const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dayOfWeek = new Date(currentYear, currentMonth, d).getDay();
     const isPast = new Date(currentYear, currentMonth, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const numClass = dayOfWeek === 0 ? 'sun' : dayOfWeek === 6 ? 'sat' : '';
+    const isHoliday = HOLIDAYS.has(dateStr);
+
+    let numClass = '';
+    if (isPast) {
+      numClass = 'past';
+    } else if (dayOfWeek === 0 || isHoliday) {
+      numClass = 'sun'; // 赤
+    } else if (dayOfWeek === 6) {
+      numClass = 'sat'; // 青
+    }
 
     const info = calendarData.find(c => c.date === dateStr);
     const status = info ? info.status : null;
@@ -186,7 +237,7 @@ function renderCalendar() {
     }
 
     html += `<div class="day ${dayClass}" ${onclick}>
-      <span class="day-num ${isPast ? 'past' : numClass}">${d}</span>
+      <span class="day-num ${numClass}">${d}</span>
       ${badge}
     </div>`;
   }
